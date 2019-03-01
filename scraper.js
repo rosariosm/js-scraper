@@ -4,6 +4,7 @@ const url = 'https://www.lanacion.com.ar/';
 const fs = require('fs');
 
 const resources = {};
+const dependencies_freq = {};
 var dependencies = []
 
 
@@ -12,15 +13,26 @@ const total_length = (e, page) => {
 }
 
 const build_dependencies = (html) => {
-}
+  $('script[src]', html).each(function() {
+    $(this).attr('src').split('/').forEach(item => {
+      if (item.includes('.js')) {
+      	dependency = item.replace(/\?.*$/, "")
+        dependencies.push(dependency)
 
-const frequency = (html) => {
+        if (dependency in dependencies_freq) {
+          dependencies_freq[dependency] += 1
+        }
+        else {
+          dependencies_freq[dependency] = 1
+        }
+      }
+    })
+  });
 }
 
 const write_results = () => {
+
 }
-
-
 
 
 puppeteer.launch().then(async browser => {
@@ -43,6 +55,7 @@ puppeteer.launch().then(async browser => {
 
   await page.goto(url);
   html = await page.content();
+  build_dependencies(html);
 
   await browser.close();
 });
