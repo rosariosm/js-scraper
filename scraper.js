@@ -1,23 +1,20 @@
 const puppeteer = require('puppeteer');
 const $ = require('cheerio');
-const url = 'https://www.lanacion.com.ar/';
 const fs = require('fs');
+const parser = require('csv-parse');
 
-const resources = {};
+const lengths = {};
 const dependencies_freq = {};
 var dependencies = []
 
 
-const total_length = (e, page) => {
-  return totalUncompressedBytes = Object.values(resources).reduce((a, n) => a + n, 0);
-}
-
-const build_dependencies = (html) => {
+const buildDependencies = ( name, html ) => {
+  let result = []
   $('script[src]', html).each(function() {
     $(this).attr('src').split('/').forEach(item => {
       if (item.includes('.js')) {
       	dependency = item.replace(/\?.*$/, "")
-        dependencies.push(dependency)
+        result.push(dependency)
 
         if (dependency in dependencies_freq) {
           dependencies_freq[dependency] += 1
@@ -28,34 +25,72 @@ const build_dependencies = (html) => {
       }
     })
   });
+  dependencies.push({[name]: result})
 }
 
-const write_results = () => {
+const writeResults = () => {
+  console.log(lengths)
+}
 
+const handleReceivedData = ( page, name ) => ( event ) => {
+  const request = page._networkManager._requestIdToRequest.get(event.requestId)
+
+  if (request && request.url().startsWith('data:')) {
+    return;
+  }
+  const length = event.dataLength;
+  if (name in lengths) {
+    lengths[name] += length;
+  }
+  else {
+    lengths[[name]] = length;
+  }
 }
 
 
-puppeteer.launch().then(async browser => {
-  const page = await browser.newPage();
+const launchBrowser = async () => {
+  puppeteer.launch().then(async browser => {
+    const promises=[];
+    for(let i = 0; i < urls.length; i++){
+      promises.push(browser.newPage().then(async page => {
+        try {
+          page._client.on('Network.dataReceived', handleReceivedData(page, urls[i].name))
+          await page.goto(urls[i].url);
+          html = await page.content();
+          buildDependencies(urls[i].name,html);
+        }
+        catch(err) {
+          console.error(err.message)
+        }
 
-  page._client.on('Network.dataReceived', (event) => {
-    const request = page._networkManager._requestIdToRequest.get(event.requestId);
-	if (request && request.url().startsWith('data:')) {
-	  return;
-	}
-	const url = request.url();
-	const length = event.dataLength;
-	if (url in resources) {
-	  resources[url] += length;
-	}
-	else {
-	  resources[url] = length;
-	}
+      }))
+    }
+    await Promise.all(promises)
+    await browser.close();
+    writeResults()
   });
+}
 
-  await page.goto(url);
-  html = await page.content();
-  build_dependencies(html);
 
-  await browser.close();
-});
+var urls = []
+
+fs.createReadStream('urls.csv')
+  .pipe(parser())
+  .on('data', function(data){
+      try {
+        urls.push({name: data[0], url: data[1]})
+      }
+      catch(err) {
+        console.error(err.message)
+      }
+  })
+  .on('error', (err) =>{
+     console.error(err.message)
+  })
+  .on('end', () => {
+    if (urls.length > 0){
+      launchBrowser()
+    }
+    else
+      console.error('El archivo no tiene datos')
+  });
