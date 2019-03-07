@@ -1,11 +1,11 @@
-const puppeteer = require('puppeteer');
-const $ = require('cheerio');
-const fs = require('fs');
-const parser = require('csv-parse');
-const stringify = require('csv-stringify');
+const puppeteer = require('puppeteer')
+const $ = require('cheerio')
+const fs = require('fs')
+const parser = require('csv-parse')
+const stringify = require('csv-stringify')
 
-const lengths = [];
-const dependencies_freq = [];
+const lengths = []
+const dependencies_freq = []
 const dependencies = []
 const urls = []
 
@@ -16,10 +16,10 @@ const calculateOccurrence = (dependency) => {
   })
 
   if (i != -1) {
-    dependencies_freq[i].frequency += 1;
+    dependencies_freq[i].frequency += 1
   }
   else {
-    dependencies_freq.push({dependency: dependency, frequency: 1});
+    dependencies_freq.push({dependency: dependency, frequency: 1})
   }
 }
 
@@ -35,7 +35,7 @@ const buildDependencies = ( name, html ) => {
         calculateOccurrence(dependency)
       }
     })
-  });
+  })
 }
 
 const writeResults = () => {
@@ -46,11 +46,11 @@ const writeResults = () => {
 
 const writeData = (filename, columns, data) => {
   stringify(data, { header: true, columns: columns }, (err, output) => {
-    if (err) throw err;
+    if (err) throw err
     fs.writeFile(filename, output, (err) => {
-      if (err) throw err;
-    });
-  });
+      if (err) throw err
+    })
+  })
 }
 
 
@@ -58,33 +58,33 @@ const handleReceivedData = ( page, name ) => ( event ) => {
   const request = page._networkManager._requestIdToRequest.get(event.requestId)
 
   if (request && request.url().startsWith('data:')) {
-    return;
+    return
   }
-  const length = event.dataLength;
+  const length = event.dataLength
 
   let i = lengths.findIndex((item) => {
     return item.name === name
   })
 
   if (i != -1) {
-    lengths[i].length += length;
+    lengths[i].length += length
   }
   else {
-    lengths.push({name: name, length: length});
+    lengths.push({name: name, length: length})
   }
 }
 
 
 const launchBrowser = async () => {
   puppeteer.launch().then(async browser => {
-    const promises=[];
+    const promises=[]
     for(let i = 0; i < urls.length; i++){
       promises.push(browser.newPage().then(async page => {
         try {
           page._client.on('Network.dataReceived', handleReceivedData(page, urls[i].name))
-          await page.goto(urls[i].url);
-          html = await page.content();
-          buildDependencies(urls[i].name,html);
+          await page.goto(urls[i].url)
+          html = await page.content()
+          buildDependencies(urls[i].name,html)
         }
         catch(err) {
           console.error(err.message)
@@ -93,18 +93,18 @@ const launchBrowser = async () => {
       }))
     }
     await Promise.all(promises)
-    await browser.close();
+    await browser.close()
     writeResults()
-  });
+  })
 }
 
 
-fs.createReadStream('urls.csv')
+fs.createReadStream('websites.csv')
   .pipe(parser())
   .on('data', function(data){
       try {
         if (data[1].startsWith('~/')){
-          let path = data[1].split('~')[1];
+          let path = data[1].split('~')[1]
           urls.push({name: data[0], url: `file:${__dirname}${path}`})
         }
         else
@@ -123,4 +123,4 @@ fs.createReadStream('urls.csv')
     }
     else
       console.error('Empty file')
-  });
+  })
