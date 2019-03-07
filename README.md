@@ -16,11 +16,20 @@ If you currently have another version of node installed in your computer, you ca
 Installation
 ------------
 
-Install with `npm`:
+Clone this repository
 
-``` bash
-$ npm install
 ```
+git clone https://github.com/rosariosm/js-scraper.git
+```
+
+Inside the root folder execute
+
+```
+npm install
+```
+
+And that's it!
+
 
 Usage
 ------------
