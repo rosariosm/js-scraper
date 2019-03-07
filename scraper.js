@@ -103,7 +103,12 @@ fs.createReadStream('urls.csv')
   .pipe(parser())
   .on('data', function(data){
       try {
-        urls.push({name: data[0], url: data[1]})
+        if (data[1].startsWith('~/')){
+          let path = data[1].split('~')[1];
+          urls.push({name: data[0], url: `file:${__dirname}${path}`})
+        }
+        else
+          urls.push({name: data[0], url: data[1]})
       }
       catch(err) {
         console.error(err.message)
@@ -117,5 +122,5 @@ fs.createReadStream('urls.csv')
       launchBrowser()
     }
     else
-      console.error('El archivo no tiene datos')
+      console.error('Empty file')
   });
